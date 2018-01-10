@@ -31,6 +31,7 @@ import PolyGlot.ManagersCollections.FamilyManager;
 import PolyGlot.ManagersCollections.DeclensionManager;
 import PolyGlot.ManagersCollections.TypeCollection;
 import PolyGlot.ManagersCollections.ConWordCollection;
+import PolyGlot.ManagersCollections.EtymologyManager;
 import PolyGlot.ManagersCollections.ImageCollection;
 import PolyGlot.ManagersCollections.OptionsManager;
 import PolyGlot.ManagersCollections.RomanizationManager;
@@ -51,7 +52,7 @@ import org.xml.sax.SAXException;
 
 public class DictCore {
 
-    private final String version = "2.0";
+    private final String version = "2.2";
     private ConWordCollection wordCollection;
     private TypeCollection typeCollection;
     private DeclensionManager declensionMgr;
@@ -64,6 +65,7 @@ public class DictCore {
     private OptionsManager optionsManager;
     private WordPropertyCollection wordPropCollection;
     private ImageCollection imageCollection;
+    private EtymologyManager etymologyManager;
     private PFrame rootWindow;
     private Object clipBoard;
     private boolean curLoading = false;
@@ -86,6 +88,7 @@ public class DictCore {
             optionsManager = new OptionsManager(this);
             wordPropCollection = new WordPropertyCollection();
             imageCollection = new ImageCollection();
+            etymologyManager = new EtymologyManager(this);
 
             PAlphaMap alphaOrder = propertiesManager.getAlphaOrder();
 
@@ -337,6 +340,11 @@ public class DictCore {
         String errorLog = "";
         String warningLog = "";
 
+        // test file exists
+        if (!IOHandler.fileExists(_fileName)) {
+            throw new IOException("File " + _fileName + " does not exist.");
+        }
+        
         // inform user if file is not an archive
         if (!IOHandler.isFileZipArchive(_fileName)) {
             throw new IOException("File " + _fileName + " is not a valid PolyGlot archive.");
@@ -422,6 +430,7 @@ public class DictCore {
         wordPropCollection.writeXML(doc, rootElement);
         typeCollection.writeXML(doc, rootElement);
         wordCollection.writeXML(doc, rootElement);
+        getEtymologyManager().writeXML(doc, rootElement);
         declensionMgr.writeXML(doc, rootElement);
         pronuncMgr.writeXML(doc, rootElement);
         romMgr.writeXML(doc, rootElement);
@@ -462,5 +471,9 @@ public class DictCore {
 
     public RomanizationManager getRomManager() {
         return romMgr;
+    }
+    
+    public EtymologyManager getEtymologyManager() {
+        return etymologyManager;
     }
 }

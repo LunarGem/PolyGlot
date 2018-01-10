@@ -186,8 +186,7 @@ public final class ScrDeclensionSetup extends PDialog {
         }
 
         TableColumn column = tblDimensions.getColumnModel().getColumn(0);
-        column.setCellEditor(new PCellEditor(new JLabel().getFont()
-                .deriveFont((float)core.getOptionsManager().getMenuFontSize()), 0.0, core));
+        column.setCellEditor(new PCellEditor(false, core));
 
         column = tblDimensions.getColumnModel().getColumn(1);
         column.setCellEditor(new TableBooleanEditor());
@@ -438,7 +437,7 @@ public final class ScrDeclensionSetup extends PDialog {
 
         if (InfoBox.yesNoCancel("Confirm action", "This action will deprecate all currently filled out \n"
                 + " declensions/conjugations (they won't be lost, but set to a deprecated\nstatus). Continue?", 
-                core.getRootWindow()) == JOptionPane.YES_OPTION) {
+                this) == JOptionPane.YES_OPTION) {
             ret = true;
         }
 
@@ -944,7 +943,7 @@ public final class ScrDeclensionSetup extends PDialog {
 
                 core.getDeclensionManager().updateDeclensionTemplate(myType.getId(), decId, decl);
             }
-        } catch (Exception e) {
+        } catch (ClassCastException e) {
             InfoBox.error("Declension Creation Error", "Unable to create Declension "
                     + txtDeclensionName.getText() + "\n\n" + e.getMessage(), core.getRootWindow());
         }

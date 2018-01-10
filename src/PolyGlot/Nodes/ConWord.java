@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016, Draque Thompson, draquemail@gmail.com
+ * Copyright (c) 2014-2017, Draque Thompson, draquemail@gmail.com
  * All rights reserved.
  *
  * Licensed under: Creative Commons Attribution-NonCommercial 4.0 International Public License
@@ -42,13 +42,15 @@ public class ConWord extends DictNode {
     private int typeId;
     private String definition;
     private String pronunciation;
+    private String etymNotes;
     private boolean procOverride;
     private boolean autoDeclensionOverride;
     private boolean rulesOverride;
     private DictCore core;
-    private ConWordCollection parent;
+    private ConWordCollection parentCollection;
     private final Map<Integer, Integer> classValues = new HashMap<>();
     private final Map<Integer, String> classTextValues = new HashMap<>();
+    private Object filterEtyParent;
     public String typeError = ""; // used only for returning error state
 
     public ConWord() {
@@ -61,6 +63,7 @@ public class ConWord extends DictNode {
         procOverride = false;
         autoDeclensionOverride = false;
         rulesOverride = false;
+        etymNotes = "";
     }
     
     /**
@@ -68,7 +71,7 @@ public class ConWord extends DictNode {
      * @return 
      */
     public boolean isWordLegal() {
-        ConWord checkValue = parent.testWordLegality(this);
+        ConWord checkValue = parentCollection.testWordLegality(this);
         String checkProc;
         
         // catches pronunciations which lead to regex errors
@@ -94,7 +97,7 @@ public class ConWord extends DictNode {
     }
     
     public void setParent(ConWordCollection _parent) {
-        parent = _parent;
+        parentCollection = _parent;
     }
     
     /**
@@ -179,24 +182,12 @@ public class ConWord extends DictNode {
         }
         this.setProcOverride(set.isProcOverride());
         this.setOverrideAutoDeclen(set.isOverrideAutoDeclen());
+        this.setEtymNotes(set.getEtymNotes());
     }
     
     public DictCore getCore() {
         return core;
     }
-    
-    /*
-        while (classIt.hasNext()) {
-            Entry<Integer, Integer> curEntry = classIt.next();
-            
-            if (!core.getWordPropertiesCollection().isValid(curEntry.getKey(), 
-                    curEntry.getValue())) {
-                classValues.remove(curEntry.getKey());
-            }
-        }
-        
-        return classValues.entrySet();
-    */
     
     public void setCore(DictCore _core) {
         core = _core;
@@ -242,9 +233,9 @@ public class ConWord extends DictNode {
     }
 
     public void setLocalWord(String _localWord) {
-        if (parent != null) {
+        if (parentCollection != null) {
             try {
-                parent.extertalBalanceWordCounts(id, value, _localWord);
+                parentCollection.extertalBalanceWordCounts(id, value, _localWord);
             } catch (Exception e) {
                 InfoBox.error("Word balance error.", "Unable to balance word: " 
                         + value, core.getRootWindow());
@@ -256,9 +247,9 @@ public class ConWord extends DictNode {
     
     @Override
     public void setValue(String _value) {
-        if (parent != null) {
+        if (parentCollection != null) {
             try {
-                parent.extertalBalanceWordCounts(id, _value, localWord);
+                parentCollection.extertalBalanceWordCounts(id, _value, localWord);
             } catch (Exception e) {
                 InfoBox.error("Word balance error.", "Unable to balance word: " 
                         + value, core.getRootWindow());
@@ -401,12 +392,40 @@ public class ConWord extends DictNode {
     public int compareTo(DictNode _compare) {
         int ret;
         
-        if (parent != null && parent.isLocalOrder()) {
+        if (parentCollection != null && parentCollection.isLocalOrder()) {
             ret = this.getLocalWord().compareToIgnoreCase(((ConWord)_compare).getLocalWord());
         } else {
             ret = super.compareTo(_compare);
         }
         
         return ret;
+    }
+
+    /**
+     * @return the etymNotes
+     */
+    public String getEtymNotes() {
+        return etymNotes;
+    }
+
+    /**
+     * @param etymNotes the etymNotes to set
+     */
+    public void setEtymNotes(String etymNotes) {
+        this.etymNotes = etymNotes;
+    }
+
+    /**
+     * @return the filterEtyParent
+     */
+    public Object getFilterEtyParent() {
+        return filterEtyParent;
+    }
+
+    /**
+     * @param filterEtyParent the filterEtyParent to set
+     */
+    public void setFilterEtyParent(Object filterEtyParent) {
+        this.filterEtyParent = filterEtyParent;
     }
 }

@@ -32,6 +32,8 @@ import PolyGlot.CustomControls.PList;
 import PolyGlot.CustomControls.PTextField;
 import PolyGlot.CustomControls.PTextPane;
 import PolyGlot.IOHandler;
+import PolyGlot.ManagersCollections.ConWordCollection;
+import PolyGlot.Nodes.EtyExternalParent;
 import PolyGlot.Nodes.TypeNode;
 import PolyGlot.Nodes.WordPropValueNode;
 import PolyGlot.Nodes.WordProperty;
@@ -77,9 +79,12 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
+import javafx.util.Callback;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.ActionMap;
@@ -108,12 +113,14 @@ public final class ScrLexicon extends PFrame {
     private CheckBox chkFindBad;
     private final JFXPanel fxPanel;
     private final TypeNode defTypeValue = new TypeNode();
+    private final EtyExternalParent defRootValue = new EtyExternalParent();
     private final String defLexValue = "List of Conlang Words";
     private TextField txtConSrc;
     private TextField txtLocalSrc;
     private TextField txtProcSrc;
     private TextField txtDefSrc;
     private ComboBox cmbTypeSrc;
+    private ComboBox cmbRootSrc;
     private boolean curPopulating = false;
     private boolean namePopulating = false;
     private boolean forceUpdate = false;
@@ -131,6 +138,9 @@ public final class ScrLexicon extends PFrame {
     public ScrLexicon(DictCore _core, ScrMainMenu _menuParent) {
         defTypeValue.setValue("-- Part of Speech --");
         defTypeValue.setId(-1);
+
+        defRootValue.setValue("-- Root --");
+        defRootValue.setId(-1);
 
         menuParent = _menuParent;
         core = _core;
@@ -159,8 +169,8 @@ public final class ScrLexicon extends PFrame {
 
     private void setCustomLabels() {
         if (System.getProperty("os.name").startsWith("Mac")) {
-            btnAddWord.setToolTipText(btnAddWord.getToolTipText() + " (⌘ +)");
-            btnDelWord.setToolTipText(btnDelWord.getToolTipText() + " (⌘ -)");
+            btnAddWord.setToolTipText(btnAddWord.getToolTipText() + " (Option +)");
+            btnDelWord.setToolTipText(btnDelWord.getToolTipText() + " (Option -)");
         } else {
             btnAddWord.setToolTipText(btnAddWord.getToolTipText() + " (CTRL +)");
             btnDelWord.setToolTipText(btnDelWord.getToolTipText() + " (CTRL -)");
@@ -205,7 +215,7 @@ public final class ScrLexicon extends PFrame {
         try {
             lstLexicon.setSelectedValue(
                     core.getWordCollection().getNodeById(wordId), true);
-        } catch (Exception e) {
+        } catch (ConWordCollection.WordNotExistsException e) {
             InfoBox.error("Refresh Error", "Unable to refresh lexicon: "
                     + e.getLocalizedMessage(), core.getRootWindow());
             //e.printStackTrace();
@@ -271,7 +281,7 @@ public final class ScrLexicon extends PFrame {
                     }
                 };
                 Platform.setImplicitExit(false);
-                Platform.runLater(fxSetup);
+                wrapPlatformRunnable(fxSetup);
 
                 ConWord curWord = (ConWord) lstLexicon.getSelectedValue();
                 saveValuesTo(curWord);
@@ -282,6 +292,8 @@ public final class ScrLexicon extends PFrame {
                 curPopulating = localPopulating;
                 forceUpdate = false;
                 populateProperties();
+                ((PTextField) txtConWord).setCore(_core);
+                ((PTextField) txtConWord).setOverrideFont(false);
             }
         };
         SwingUtilities.invokeLater(runnable);
@@ -394,15 +406,15 @@ public final class ScrLexicon extends PFrame {
     private void setupClassPanel(int setTypeId) {
         ConWord curWord = (ConWord) lstLexicon.getSelectedValue();
 
+        pnlClasses.removeAll();
+
         // on no word selected, simply blank all classes
         if (curWord == null) {
-            pnlClasses.removeAll();
             return;
         }
 
         List<WordProperty> propList = core.getWordPropertiesCollection()
                 .getClassProps(setTypeId);
-        pnlClasses.removeAll();
         pnlClasses.setPreferredSize(new Dimension(4000, 1));
 
         pnlClasses.setLayout(new GridBagLayout());
@@ -526,17 +538,6 @@ public final class ScrLexicon extends PFrame {
         jPanel1.add(fxPanel, c);
         jPanel1.setBackground(Color.white);
         fxPanel.setBackground(Color.white);
-        fxPanel.addFocusListener(new FocusListener() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                // do nothing
-            }
-
-            @Override
-            public void focusLost(FocusEvent e) {
-                gridTitlePane.setExpanded(false);
-            }
-        });
         final CountDownLatch latch = new CountDownLatch(1);
         Runnable fxSetup = new Runnable() {
             @Override
@@ -597,23 +598,29 @@ public final class ScrLexicon extends PFrame {
 
         curPopulating = localPopulating;
     }
-    
+
     /**
-     * generates 
+     * generates
      */
     private void genRom() {
         if (enableProcGen) {
-            try {
-                txtRom.setText(core.getRomManager().getPronunciation(txtConWord.getText()));
-            } catch (Exception e) {
-                setProcError(e.getLocalizedMessage());
-            }
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        txtRom.setText(core.getRomManager().getPronunciation(txtConWord.getText()));
+                    } catch (Exception e) {
+                        setProcError(e.getLocalizedMessage());
+                    }
+                }
+            });
         }
     }
-    
+
     /**
      * Sets the pronunciation generation to be disabled. This prevents endless
      * error messages from popping.
+     *
      * @param message error message to display to user
      */
     private void setProcError(String message) {
@@ -666,15 +673,20 @@ public final class ScrLexicon extends PFrame {
                     lstLexicon.setSelectedIndex(0);
                     lstLexicon.ensureIndexIsVisible(0);
                     populateProperties();
-                    Thread.sleep(50); // wait for other elements to paint first...
-                    jPanel1.repaint();
                 } catch (InterruptedException e) {
                     // do nothing: interruption is due to additional user input
                 }
             }
         });
 
-        filterThread.start();
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                filterThread.start();
+            }
+        };
+
+        Platform.runLater(r);
     }
 
     /**
@@ -689,11 +701,14 @@ public final class ScrLexicon extends PFrame {
         int filterType = cmbTypeSrc.getValue().equals(defTypeValue)
                 ? 0 : ((TypeNode) cmbTypeSrc.getValue()).getId();
 
+        saveValuesTo(getCurrentWord());
+
         if (txtConSrc.getText().equals("")
                 && txtDefSrc.getText().equals("")
                 && txtLocalSrc.getText().equals("")
                 && txtProcSrc.getText().equals("")
-                && filterType == 0) {
+                && filterType == 0
+                && cmbRootSrc.getValue().toString().equals(defRootValue.getValue())) {
             populateLexicon();
             lstLexicon.setSelectedIndex(0);
             lstLexicon.ensureIndexIsVisible(0);
@@ -715,6 +730,7 @@ public final class ScrLexicon extends PFrame {
         filter.setLocalWord(txtLocalSrc.getText().trim());
         filter.setWordTypeId(filterType);
         filter.setPronunciation(txtProcSrc.getText().trim());
+        filter.setFilterEtyParent(cmbRootSrc.getValue());
 
         // save word before applying filter
         ConWord curWord = (ConWord) lstLexicon.getSelectedValue();
@@ -756,7 +772,7 @@ public final class ScrLexicon extends PFrame {
                 }
             };
 
-            Platform.runLater(fxSetup);
+            SwingUtilities.invokeLater(fxSetup);
 
             try {
                 latch.await(); // do not continue until filter cleared
@@ -770,7 +786,6 @@ public final class ScrLexicon extends PFrame {
             txtLocalSrc.setText("");
             txtProcSrc.setText("");
             cmbTypeSrc.getSelectionModel().select(0);
-            gridTitlePane.setExpanded(false);
             SwingUtilities.invokeLater(new Runnable() {
                 @Override
                 public void run() {
@@ -838,9 +853,9 @@ public final class ScrLexicon extends PFrame {
         boolean isLegal = true;
 
         txtErrorBox.setText("");
-        
+
         String procLegality = "";
-        
+
         if (enableProcGen) {
             try {
                 procLegality = results.getPronunciation();
@@ -936,27 +951,57 @@ public final class ScrLexicon extends PFrame {
      */
     private TitledPane createSearchPanel() {
         GridPane grid = new GridPane();
-        javafx.scene.text.Font font = javafx.scene.text.Font.loadFont(new IOHandler().getCharisInputStream(), 12);
+        final javafx.scene.text.Font font = javafx.scene.text.Font.loadFont(new IOHandler().getCharisInputStream(), 12);
 
         grid.setPrefWidth(4000);
         txtConSrc = new TextField();
         txtConSrc.setPromptText("Search ConWord...");
         txtConSrc.setFont(font);
+        txtConSrc.setTooltip(new Tooltip("Filter lexicon entries based on the value of your constructed words"));
         txtLocalSrc = new TextField();
         txtLocalSrc.setPromptText("Search NatLang Word...");
         txtLocalSrc.setFont(font);
+        txtLocalSrc.setTooltip(new Tooltip("Filter lexicon entries based on the translated value of your language's words"));
         txtProcSrc = new TextField();
         txtProcSrc.setPromptText("Search by Pronunciation...");
         txtProcSrc.setFont(font);
+        txtProcSrc.setTooltip(new Tooltip("Filter lexicon entries based on the pronunciation of your language's words"));
         txtDefSrc = new TextField();
         txtDefSrc.setPromptText("Search by Definition...");
         txtDefSrc.setFont(font);
+        txtDefSrc.setTooltip(new Tooltip("Filter lexicon entries based on definition value of your language's words"));
         cmbTypeSrc = new ComboBox();
+        cmbTypeSrc.setTooltip(new Tooltip("Filter lexicon entries based on their parts of speech"));
         gridTitlePane = new TitledPane();
         gridTitlePane.setFont(font);
         chkFindBad = new CheckBox();
         chkFindBad.setFont(font);
+        chkFindBad.setTooltip(new Tooltip("Filter lexicon entries to find words with illegal values"));
+        cmbRootSrc = new ComboBox();
+        cmbRootSrc.setCellFactory(
+                new Callback<ListView<Object>, ListCell<Object>>() {
+            @Override
+            public ListCell<Object> call(ListView<Object> param) {
+                final ListCell<Object> cell = new ListCell<Object>() {
+                    @Override
+                    public void updateItem(Object item,
+                            boolean empty) {
+                        super.updateItem(item, empty);
+                        if (item != null && item instanceof ConWord) {
+                            setFont(core.getPropertiesManager().getFXFont());
+                            setText(item.toString());
+                        } else if (item != null && item instanceof EtyExternalParent) {
+                            setFont(font);
+                            setText(item.toString());
+                        } else {
+                            setText(null);
+                        }
+                    }
+                };
+                return cell;
+            }
 
+        });
         chkFindBad.setTooltip(new Tooltip("Select to filter on all words with illegal values"));
         chkFindBad.selectedProperty().addListener(new ChangeListener<Boolean>() {
             @Override
@@ -964,8 +1009,6 @@ public final class ScrLexicon extends PFrame {
                 applyIllegalFilter();
             }
         });
-        //Label label;
-        //label.setAlignment(Pos.RIGHT);
 
         grid.setVgap(4);
         grid.setPadding(new Insets(5, 5, 5, 5));
@@ -973,7 +1016,7 @@ public final class ScrLexicon extends PFrame {
         grid.add(txtConSrc, 1, 0);
         grid.add(new Label("Local Word: "), 0, 1);
         grid.add(txtLocalSrc, 1, 1);
-        grid.add(new Label("Type: "), 0, 2);
+        grid.add(new Label("Part of Speech: "), 0, 2);
         grid.add(cmbTypeSrc, 1, 2);
         grid.setPadding(new Insets(5, 5, 5, 5));
         grid.add(new Label("            "), 2, 0); // adds spacing
@@ -981,8 +1024,11 @@ public final class ScrLexicon extends PFrame {
         grid.add(txtProcSrc, 4, 0);
         grid.add(new Label("Definition: "), 3, 1);
         grid.add(txtDefSrc, 4, 1);
-        grid.add(new Label("Illegals"), 3, 2);
-        grid.add(chkFindBad, 4, 2);
+        grid.add(new Label("Root: "), 3, 2);
+        grid.add(cmbRootSrc, 4, 2);
+        grid.add(new Label("Illegals"), 0, 3);
+        grid.add(chkFindBad, 1, 3);
+
         gridTitlePane.setText("Search/Filter");
         gridTitlePane.setContent(grid);
         gridTitlePane.setExpanded(false);
@@ -1012,6 +1058,12 @@ public final class ScrLexicon extends PFrame {
         txtProcSrc.setText("");
         txtDefSrc.setText("");
         cmbTypeSrc.getSelectionModel().select(defTypeValue);
+        cmbRootSrc.getSelectionModel().select(defRootValue);
+        cmbRootSrc.setStyle("-fx-font: "
+                + core.getPropertiesManager()
+                        .getCharisUnicodeFont().getSize() + "px \""
+                + core.getPropertiesManager()
+                        .getCharisUnicodeFont().getFamily() + "\";");
     }
 
     /**
@@ -1027,6 +1079,7 @@ public final class ScrLexicon extends PFrame {
         txtLocalSrc.setDisable(chkFindBad.isSelected());
         txtProcSrc.setDisable(chkFindBad.isSelected());
         cmbTypeSrc.setDisable(chkFindBad.isSelected());
+        cmbRootSrc.setDisable(chkFindBad.isSelected());
 
         if (chkFindBad.isSelected()) {
             populateLexicon(core.getWordCollection().illegalFilter());
@@ -1086,7 +1139,7 @@ public final class ScrLexicon extends PFrame {
 
         try {
             target = core.getWordCollection().getNodeById(id);
-        } catch (Exception e) {
+        } catch (ConWordCollection.WordNotExistsException e) {
             InfoBox.error("Word Selection Error", "Unable to select word:\n"
                     + e.getLocalizedMessage(), core.getRootWindow());
         }
@@ -1218,6 +1271,28 @@ public final class ScrLexicon extends PFrame {
         addFilterListeners(txtLocalSrc);
         addFilterListeners(txtProcSrc);
         addFilterListeners(cmbTypeSrc);
+        addFilterListeners(cmbRootSrc);
+
+        // handles swapping of font for root box as appropriate
+        cmbRootSrc.addEventHandler(EventType.ROOT, new EventHandler() {
+            @Override
+            public void handle(Event evt) {
+                if (cmbRootSrc.getValue() instanceof ConWord) {
+                    cmbRootSrc.setStyle("-fx-font: "
+                            + core.getPropertiesManager()
+                                    .getFontCon().getSize()
+                            + "px \""
+                            + core.getPropertiesManager().getFontCon()
+                                    .getFamily() + "\";");
+                } else {
+                    cmbRootSrc.setStyle("-fx-font: "
+                            + core.getPropertiesManager()
+                                    .getCharisUnicodeFont().getSize() + "px \""
+                            + core.getPropertiesManager()
+                                    .getCharisUnicodeFont().getFamily() + "\";");
+                }
+            }
+        });
     }
 
     /**
@@ -1353,6 +1428,7 @@ public final class ScrLexicon extends PFrame {
                 chkRuleOverride.setEnabled(enable);
                 btnDeclensions.setEnabled(enable);
                 btnLogographs.setEnabled(enable);
+                btnEtymology.setEnabled(enable);
                 for (JComponent classComp : classPropMap.values()) {
                     classComp.setEnabled(enable);
                 }
@@ -1370,6 +1446,13 @@ public final class ScrLexicon extends PFrame {
         cmbTypeSrc.getSelectionModel().selectFirst();
         for (TypeNode curNode : core.getTypes().getNodes()) {
             cmbTypeSrc.getItems().add(curNode);
+        }
+
+        cmbRootSrc.getItems().clear();
+        cmbRootSrc.getItems().add(defRootValue);
+        cmbRootSrc.getSelectionModel().selectFirst();
+        for (Object o : core.getEtymologyManager().getAllRoots()) {
+            cmbRootSrc.getItems().add(o);
         }
     }
 
@@ -1494,6 +1577,25 @@ public final class ScrLexicon extends PFrame {
             saveWord.setWordTypeId(curType.equals(defTypeValue)
                     ? 0 : ((TypeNode) curType).getId());
         }
+
+        // save all class values
+        for (Entry<Integer, JComponent> entry : classPropMap.entrySet()) {
+            if (entry.getValue() instanceof PTextField) {
+                PTextField textField = (PTextField) entry.getValue();
+                saveWord.setClassTextValue(entry.getKey(), textField.getText());
+            } else if (entry.getValue() instanceof PComboBox) {
+                PComboBox comboBox = (PComboBox) entry.getValue();
+                if (comboBox.getSelectedItem() instanceof WordPropValueNode) {
+                    WordPropValueNode curValue = (WordPropValueNode) comboBox.getSelectedItem();
+                    saveWord.setClassValue(entry.getKey(), curValue.getId());
+                } else {
+                    // if not an instance of a value, then it's the default selection: remove class from word
+                    saveWord.setClassValue(entry.getKey(), -1);
+                }
+            } else {
+                InfoBox.error("Value Save Error", "Unknown class value type.", core.getRootWindow());
+            }
+        }
     }
 
     private void deleteWord() {
@@ -1591,6 +1693,21 @@ public final class ScrLexicon extends PFrame {
     }
 
     /**
+     * Wraps platform runnables within swing system. Messy but necessary to
+     * avoid race deadlocks
+     *
+     * @param r
+     */
+    private void wrapPlatformRunnable(final Runnable r) {
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                Platform.runLater(r);
+            }
+        });
+    }
+
+    /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
      * regenerated by the Form Editor.
@@ -1617,6 +1734,7 @@ public final class ScrLexicon extends PFrame {
         pnlClasses = new javax.swing.JPanel();
         jScrollPane4 = new javax.swing.JScrollPane();
         txtDefinition = new PTextPane(core, true, "-- Definition --");
+        btnEtymology = new PButton(core);
         jPanel4 = new javax.swing.JPanel();
         jScrollPane3 = new javax.swing.JScrollPane();
         lstLexicon = new PList(core, true);
@@ -1739,15 +1857,20 @@ public final class ScrLexicon extends PFrame {
         txtDefinition.setName(""); // NOI18N
         jScrollPane4.setViewportView(txtDefinition);
 
+        btnEtymology.setText("Etymology");
+        btnEtymology.setToolTipText("A word's etymological roots are stored and set here.");
+        btnEtymology.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnEtymologyActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
         jPanel3Layout.setHorizontalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(pnlClasses, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(txtProc, javax.swing.GroupLayout.Alignment.TRAILING)
-            .addGroup(jPanel3Layout.createSequentialGroup()
-                .addComponent(chkProcOverride)
-                .addGap(0, 0, Short.MAX_VALUE))
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addComponent(chkRuleOverride)
                 .addContainerGap(333, Short.MAX_VALUE))
@@ -1757,9 +1880,15 @@ public final class ScrLexicon extends PFrame {
             .addComponent(jScrollPane4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(jPanel3Layout.createSequentialGroup()
-                .addComponent(btnDeclensions)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(btnLogographs))
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(chkProcOverride)
+                    .addGroup(jPanel3Layout.createSequentialGroup()
+                        .addComponent(btnDeclensions)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(btnEtymology)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(btnLogographs)))
+                .addGap(0, 91, Short.MAX_VALUE))
         );
         jPanel3Layout.setVerticalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -1779,13 +1908,14 @@ public final class ScrLexicon extends PFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(chkRuleOverride)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane4, javax.swing.GroupLayout.DEFAULT_SIZE, 188, Short.MAX_VALUE)
+                .addComponent(jScrollPane4, javax.swing.GroupLayout.DEFAULT_SIZE, 154, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btnLogographs, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(btnDeclensions, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addComponent(btnDeclensions, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnEtymology, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)))
         );
 
         jSplitPane1.setRightComponent(jPanel3);
@@ -1798,6 +1928,7 @@ public final class ScrLexicon extends PFrame {
         lstLexicon.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
         lstLexicon.setToolTipText("List of Conlang Words");
         lstLexicon.setCursor(new java.awt.Cursor(java.awt.Cursor.DEFAULT_CURSOR));
+        lstLexicon.setDragEnabled(true);
         lstLexicon.setMaximumSize(new java.awt.Dimension(4000, 4000));
         lstLexicon.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
@@ -1994,10 +2125,15 @@ public final class ScrLexicon extends PFrame {
         ScrQuickWordEntry.run(core, this);
     }//GEN-LAST:event_jButton1ActionPerformed
 
+    private void btnEtymologyActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEtymologyActionPerformed
+        new ScrEtymRoots(core, menuParent, getCurrentWord()).setVisible(true);
+    }//GEN-LAST:event_btnEtymologyActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnAddWord;
     private javax.swing.JButton btnDeclensions;
     private javax.swing.JButton btnDelWord;
+    private javax.swing.JButton btnEtymology;
     private javax.swing.JButton btnLogographs;
     private javax.swing.JCheckBox chkProcOverride;
     private javax.swing.JCheckBox chkRuleOverride;

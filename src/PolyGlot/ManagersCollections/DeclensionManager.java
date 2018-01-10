@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015, Draque Thompson, draquemail@gmail.com
+ * Copyright (c) 2014-2017, Draque Thompson, draquemail@gmail.com
  * All rights reserved.
  *
  * Licensed under: Creative Commons Attribution-NonCommercial 4.0 International Public License
@@ -69,20 +69,33 @@ public class DeclensionManager {
     private final List<DeclensionGenRule> generationRules = new ArrayList<>();
     private DeclensionGenRule ruleBuffer = new DeclensionGenRule();
 
-    public boolean isCombinedDeclSurpressed(String _combId) {
-        if (!combSettings.containsKey(_combId)) {
+    public boolean isCombinedDeclSurpressed(String _combId, Integer _typeId) {
+        String storeId = _typeId.toString() + "," + _combId;
+        
+        if (!combSettings.containsKey(storeId)) {
             return false;
         }
 
-        return combSettings.get(_combId);
+        return combSettings.get(storeId);
     }
 
-    public void setCombinedDeclSurpressed(String _combId, boolean _surpress) {
-        if (!combSettings.containsKey(_combId)) {
-            combSettings.put(_combId, _surpress);
+    public void setCombinedDeclSurpressed(String _combId, Integer _typeId, boolean _surpress) {
+        String storeId = _typeId.toString() + "," + _combId;
+        
+        if (!combSettings.containsKey(storeId)) {
+            combSettings.put(storeId, _surpress);
         } else {
-            combSettings.replace(_combId, _surpress);
+            combSettings.replace(storeId, _surpress);
         }
+    }
+    
+    /**
+     * This sets the surpression data raw. Should only be used when loading from a file
+     * @param _completeId complete, raw ID of data
+     * @param _surpress surpression value
+     */
+    public void setCombinedDeclSurpressedRaw(String _completeId, boolean _surpress) {
+        combSettings.put(_completeId, _surpress);
     }
 
     /**
@@ -219,8 +232,9 @@ public class DeclensionManager {
      * @param combinedId combined ID of word form to create
      * @param base base word string
      * @return new word value if exists, empty string otherwise
+     * @throws java.lang.Exception on bad regex
      */
-    public String declineWord(int typeId, String combinedId, String base) {
+    public String declineWord(int typeId, String combinedId, String base) throws Exception {
         Iterator<DeclensionGenRule> typeRules = getDeclensionRules(typeId).iterator();
         String ret = "";
 
@@ -237,7 +251,13 @@ public class DeclensionManager {
                 List<DeclensionGenTransform> transforms = curRule.getTransforms();
 
                 for (DeclensionGenTransform curTrans : transforms) {
-                    base = base.replaceAll(curTrans.regex, curTrans.replaceText);
+                    try {
+                        base = base.replaceAll(curTrans.regex, curTrans.replaceText);
+                    } catch (Exception e) {
+                        throw new Exception("Unable to create declension/conjugation "
+                                + "due to malformed regex (modify in Parts of Speech->Autogeneration): " 
+                                + e.getLocalizedMessage());
+                    }
 
                     ret = base;
                 }
@@ -283,7 +303,7 @@ public class DeclensionManager {
                 if (!core.getWordCollection().getNodeById(curEntry.getKey()).getWordTypeId().equals(typeId)) {
                     continue;
                 }
-            } catch (Exception e) {
+            } catch (ConWordCollection.WordNotExistsException e) {
                 // if a word isn't found, then the value is orphaned and declension values will be wiped next time the user saves
                 continue;
             }
@@ -400,7 +420,7 @@ public class DeclensionManager {
                 DeclensionNode curMand = mandIt.next();
 
                 // skip surpressed forms
-                if (isCombinedDeclSurpressed(curMand.getCombinedDimId())) {
+                if (isCombinedDeclSurpressed(curMand.getCombinedDimId(), type.getId())) {
                     continue;
                 }
 
@@ -842,9 +862,12 @@ public class DeclensionManager {
      */
     public void writeXML(Document doc, Element rootElement) {
         Set<Entry<Integer, List<DeclensionNode>>> declensionSet;
+        Element declensionCollection = doc.createElement(PGTUtil.declensionCollectionXID);
         Element wordNode;
         Element wordValue;
 
+        rootElement.appendChild(declensionCollection);
+        
         // record declension templates
         declensionSet = getTemplateMap().entrySet();
 
@@ -853,7 +876,7 @@ public class DeclensionManager {
 
             for (DeclensionNode curNode : e.getValue()) {
                 wordNode = doc.createElement(PGTUtil.declensionXID);
-                rootElement.appendChild(wordNode);
+                declensionCollection.appendChild(wordNode);
 
                 wordValue = doc.createElement(PGTUtil.declensionIdXID);
                 wordValue.appendChild(doc.createTextNode(curNode.getId().toString()));
@@ -909,7 +932,7 @@ public class DeclensionManager {
 
             for (DeclensionNode curNode : e.getValue()) {
                 wordNode = doc.createElement(PGTUtil.declensionXID);
-                rootElement.appendChild(wordNode);
+                declensionCollection.appendChild(wordNode);
 
                 wordValue = doc.createElement(PGTUtil.declensionIdXID);
                 wordValue.appendChild(doc.createTextNode(curNode.getId().toString()));
@@ -940,7 +963,7 @@ public class DeclensionManager {
         // record declension autogeneration rules
         for (DeclensionGenRule curRule : generationRules) {
             Element ruleNode = doc.createElement(PGTUtil.decGenRuleXID);
-            rootElement.appendChild(ruleNode);
+            declensionCollection.appendChild(ruleNode);
 
             wordValue = doc.createElement(PGTUtil.decGenRuleCombXID);
             wordValue.appendChild(doc.createTextNode(curRule.getCombinationId()));

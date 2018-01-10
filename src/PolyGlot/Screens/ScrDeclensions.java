@@ -274,7 +274,7 @@ public class ScrDeclensions extends PDialog {
             String curLabel = curDec.label;
             
             // skip forms that have been surpressed
-            if (core.getDeclensionManager().isCombinedDeclSurpressed(curId)) {
+            if (core.getDeclensionManager().isCombinedDeclSurpressed(curId, typeId)) {
                 allWordDeclensions.remove(curId);
                 continue;
             }
@@ -299,11 +299,15 @@ public class ScrDeclensions extends PDialog {
             
             // if the autodeclension override is not set, create a value
             if (!word.isOverrideAutoDeclen()) {
-                String newForm = core.getDeclensionManager().declineWord(typeId, curId, word.getValue());
-                
-                // only set value if form found
-                if (!newForm.equals("")) {
-                    newField.setText(newForm);
+                try {
+                    String newForm = core.getDeclensionManager().declineWord(typeId, curId, word.getValue());
+                    
+                    // only set value if form found
+                    if (!newForm.equals("")) {
+                        newField.setText(newForm);
+                    }
+                } catch (Exception e) {
+                    InfoBox.error("Declension Error", e.getLocalizedMessage(), this);
                 }
             }
 

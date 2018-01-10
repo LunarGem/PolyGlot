@@ -147,6 +147,12 @@ public class PToolTipUI extends ToolTipUI
 
         c.setSize(size);
         c.getParent().setSize(size);
+<<<<<<< HEAD
+=======
+        if (c.getParent().getParent() != null) {
+            //c.getParent().getParent().setSize(size);
+        }
+>>>>>>> refs/remotes/DraqueT/master
 
         Insets insets = c.getInsets();
         Rectangle paintTextR = new Rectangle(

@@ -340,7 +340,7 @@ public class ScrPhonology extends PFrame {
         procTableModel.addColumn("Character(s)");
         procTableModel.addColumn("Pronuncation");
         tblProcs.setModel(procTableModel); // TODO: find way to make tblProcs display RTL order when appropriate Maybe something on my custom cell editor
-
+        
         procTableModel.addTableModelListener(new TableModelListener() {
             @Override
             public void tableChanged(TableModelEvent e) {
@@ -348,17 +348,13 @@ public class ScrPhonology extends PFrame {
             }
         });
 
-        Font defaultFont = core.getPropertiesManager().getCharisUnicodeFont();
-        Font conFont = core.getPropertiesManager().getFontCon();
-        Double kern = core.getPropertiesManager().getKerningSpace();
-
         TableColumn column = tblProcs.getColumnModel().getColumn(0);
-        column.setCellEditor(new PCellEditor(conFont, kern, core));
-        column.setCellRenderer(new PCellRenderer(conFont, kern, core));
+        column.setCellEditor(new PCellEditor(true, core));
+        column.setCellRenderer(new PCellRenderer(true, core));
 
         column = tblProcs.getColumnModel().getColumn(1);
-        column.setCellEditor(new PCellEditor(defaultFont,0.0, core));
-        column.setCellRenderer(new PCellRenderer(defaultFont, 0.0, core));
+        column.setCellEditor(new PCellEditor(false, core));
+        column.setCellRenderer(new PCellRenderer(false, core));
 
         // disable tab/arrow selection
         InputMap procInput = tblProcs.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
@@ -387,11 +383,8 @@ public class ScrPhonology extends PFrame {
             }
         });
 
-        Font defaultFont = core.getPropertiesManager().getCharisUnicodeFont();
-        Font conFont = core.getPropertiesManager().getFontCon();
-
         TableColumn column = tblRep.getColumnModel().getColumn(0);
-        final PCellEditor editChar = new PCellEditor(defaultFont, 0.0, core);
+        final PCellEditor editChar = new PCellEditor(false, core);
         editChar.setIgnoreListenerSilenceing(true);
         editChar.setDocuListener(new DocumentListener() {
             @Override
@@ -429,10 +422,10 @@ public class ScrPhonology extends PFrame {
             }
         });        
         column.setCellEditor(editChar);
-        column.setCellRenderer(new PCellRenderer(defaultFont, 0.0, core));
+        column.setCellRenderer(new PCellRenderer(false, core));
 
         column = tblRep.getColumnModel().getColumn(1);
-        PCellEditor valueEdit = new PCellEditor(conFont, core.getPropertiesManager().getKerningSpace(), core);
+        PCellEditor valueEdit = new PCellEditor(true, core);
         valueEdit.setIgnoreListenerSilenceing(true);
         valueEdit.setDocuListener(new DocumentListener() {
             @Override
@@ -451,7 +444,7 @@ public class ScrPhonology extends PFrame {
             }
         });
         column.setCellEditor(valueEdit);
-        column.setCellRenderer(new PCellRenderer(conFont, core.getPropertiesManager().getKerningSpace(), core));
+        column.setCellRenderer(new PCellRenderer(true, core));
 
         // disable tab/arrow selection
         InputMap procInput = tblRom.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
@@ -480,17 +473,13 @@ public class ScrPhonology extends PFrame {
             }
         });
 
-        Font defaultFont = core.getPropertiesManager().getCharisUnicodeFont();
-        Font conFont = core.getPropertiesManager().getFontCon();
-        Double kern = core.getPropertiesManager().getKerningSpace();
-
         TableColumn column = tblRom.getColumnModel().getColumn(0);
-        column.setCellEditor(new PCellEditor(conFont, kern, core));
-        column.setCellRenderer(new PCellRenderer(conFont, kern, core));
+        column.setCellEditor(new PCellEditor(true, core));
+        column.setCellRenderer(new PCellRenderer(true, core));
 
         column = tblRom.getColumnModel().getColumn(1);
-        column.setCellEditor(new PCellEditor(defaultFont, 0.0, core));
-        column.setCellRenderer(new PCellRenderer(defaultFont, 0.0, core));
+        column.setCellEditor(new PCellEditor(false, core));
+        column.setCellRenderer(new PCellRenderer(false, core));
 
         // disable tab/arrow selection
         InputMap procInput = tblRom.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
@@ -969,15 +958,15 @@ public class ScrPhonology extends PFrame {
         pnlOrthographyLayout.setHorizontalGroup(
             pnlOrthographyLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, 205, Short.MAX_VALUE)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, pnlOrthographyLayout.createSequentialGroup()
+            .addGroup(pnlOrthographyLayout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(pnlOrthographyLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(chkPhonRecurse, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jScrollPane2, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+                .addGroup(pnlOrthographyLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(pnlOrthographyLayout.createSequentialGroup()
                         .addComponent(btnAddProc, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(btnDelProc, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addComponent(btnDelProc, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(chkPhonRecurse, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(pnlOrthographyLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(btnDownProc, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -988,19 +977,18 @@ public class ScrPhonology extends PFrame {
             .addGroup(pnlOrthographyLayout.createSequentialGroup()
                 .addComponent(jLabel1)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(pnlOrthographyLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                .addGroup(pnlOrthographyLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(pnlOrthographyLayout.createSequentialGroup()
                         .addComponent(btnUpProc)
-                        .addGap(257, 257, 257)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 217, Short.MAX_VALUE)
                         .addComponent(btnDownProc))
-                    .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 315, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(chkPhonRecurse)
-                .addGap(1, 1, 1)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(pnlOrthographyLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(btnAddProc)
-                    .addComponent(btnDelProc, javax.swing.GroupLayout.Alignment.TRAILING))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addComponent(btnAddProc, javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(btnDelProc, javax.swing.GroupLayout.Alignment.TRAILING)))
         );
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
@@ -1048,23 +1036,23 @@ public class ScrPhonology extends PFrame {
                 .addContainerGap()
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 123, Short.MAX_VALUE)
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 0, Short.MAX_VALUE)
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(btnAddCharRep, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(btnDelCharRep, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 0, Short.MAX_VALUE))
                 .addContainerGap())
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addComponent(btnAddCharRep, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(btnDelCharRep, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addComponent(jLabel3)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 0, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(btnAddCharRep, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(btnDelCharRep, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(btnDelCharRep, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnAddCharRep, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());

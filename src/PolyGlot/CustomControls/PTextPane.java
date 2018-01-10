@@ -28,6 +28,8 @@ import PolyGlot.PGTools;
 import PolyGlot.WebInterface;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -103,7 +105,23 @@ public class PTextPane extends JTextPane {
         // might handle more types in the future
         if (ClipboardHandler.isClipboardImage()) {
             try {
-                BufferedImage image = (BufferedImage) ClipboardHandler.getClipboardImage();
+                Object imageObject = ClipboardHandler.getClipboardImage();
+                BufferedImage image;
+                if (imageObject instanceof BufferedImage) {
+                    image = (BufferedImage)imageObject;
+                } else if (imageObject instanceof Image) {
+                    Image imageImage = (Image)imageObject;
+                    image = new BufferedImage(imageImage.getWidth(null), 
+                            imageImage.getHeight(null), BufferedImage.TYPE_INT_ARGB);
+
+                    // Draw the image on to the buffered image
+                    Graphics2D bGr = image.createGraphics();
+                    bGr.drawImage(imageImage, 0, 0, null);
+                    bGr.dispose();
+                } else {
+                    throw new Exception("Unrecognized image format.");
+                }
+                
                 ImageNode imageNode = core.getImageCollection().getFromBufferedImage(image);
                 addImage(imageNode);
             } catch (Exception e) {
@@ -300,15 +318,15 @@ public class PTextPane extends JTextPane {
     public boolean isEmpty() {
         boolean ret;
         
-        // TODO: track down reasons
-        // for unknown reasons, freshly emptied text panes when using enforced 
-        // RTL will throw an out of bounds exception when calling super.getText()
-        // This only happens when they are empty, so gather and return true.
         try{
             String body = super.getText();
             body = body.substring(0, body.indexOf("</body>"));
             body = body.substring(body.lastIndexOf("<body>") + 6, body.length());
-            ret = body.trim().equals("");
+            ret = !body.contains("<img src");
+            if (ret) {
+                body = body.replaceAll("<.*?>", "");
+                ret = body.trim().equals("");
+            }
         } catch (Exception e) {
             ret = true;
         }

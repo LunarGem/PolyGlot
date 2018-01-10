@@ -35,6 +35,7 @@ import PolyGlot.CustomControls.PLabel;
 import PolyGlot.CustomControls.PList;
 import PolyGlot.CustomControls.PTable;
 import PolyGlot.CustomControls.PTextPane;
+import PolyGlot.ManagersCollections.DictionaryCollection;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
@@ -124,7 +125,7 @@ public class ScrLogoDetails extends PFrame {
                 list.add(singleModeLogo);
 
                 populateLogographs(list.iterator());
-            } catch (Exception e) {
+            } catch (DictionaryCollection.NodeNotExistsException e) {
                 InfoBox.error("Logograph Error", "Unable to load logograph: " + e.getMessage(), _core.getRootWindow());
             }
 
@@ -779,12 +780,10 @@ public class ScrLogoDetails extends PFrame {
         procModel.addColumn("Readings");
         tblReadings.setModel(procModel);
 
-        // Readings font must be set each time the table is rebuilt
-        Font setFont = core.getPropertiesManager().getFontCon();
-        Double kern = core.getPropertiesManager().getKerningSpace();
+        // Fonts must be set each time the table is rebuilt
         TableColumn column = tblReadings.getColumnModel().getColumn(0);
-        column.setCellEditor(new PCellEditor(setFont, kern, core));
-        column.setCellRenderer(new PCellRenderer(setFont, kern, core));
+        column.setCellEditor(new PCellEditor(true, core));
+        column.setCellRenderer(new PCellRenderer(true, core));
 
         while (procIt.hasNext()) {
             Object[] newRow = {procIt.next()};
@@ -893,7 +892,7 @@ public class ScrLogoDetails extends PFrame {
      * adds a radical from the quickview window to the currently selected
      * logograph
      */
-    private void addRadFromQuickview() {
+    public void addRadFromQuickview() {
         LogoNode rad = quickView.getCurrentLogo();
         DefaultListModel radModel = (DefaultListModel) lstRadicals.getModel();
 
@@ -922,12 +921,14 @@ public class ScrLogoDetails extends PFrame {
      * deletes currently selected reading
      */
     private void deleteReading() {
-        if (tblReadings.getSelectedRow() == -1) {
+        int selectedRow = tblReadings.getSelectedRow();
+        DefaultTableModel myModel = (DefaultTableModel) tblReadings.getModel();
+        
+        if (selectedRow == -1) {
             return;
         }
 
-        ((DefaultTableModel) tblReadings.getModel()).
-                removeRow(tblReadings.getSelectedRow());
+        myModel.removeRow(selectedRow);
     }
 
     @Override
@@ -1418,7 +1419,8 @@ public class ScrLogoDetails extends PFrame {
         }
 
         DefaultTableModel model = (DefaultTableModel) tblReadings.getModel();
-        model.addRow(new Object[]{"New Reading"});
+        Object[] newRow = {"New Reading"};
+        model.addRow(newRow);
     }//GEN-LAST:event_btnAddReadingActionPerformed
 
     private void btnDelLogoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDelLogoActionPerformed
@@ -1437,7 +1439,7 @@ public class ScrLogoDetails extends PFrame {
         if (quickView == null || quickView.isDisposed()) {
             quickView = new ScrLogoQuickView(core, true);
             quickView.setBeside(this);
-            quickView.setCore(core);
+            quickView.setLogoParent(this);
             quickView.setVisible(true);
         } else {
             addRadFromQuickview();

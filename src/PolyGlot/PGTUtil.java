@@ -30,9 +30,11 @@ import javax.swing.ImageIcon;
  * @author draque
  */
 public class PGTUtil {
-    // properties on words
     public static final String dictionaryXID = "dictionary";
     public static final String pgVersionXID = "PolyGlotVer";
+    
+    // properties on words
+    public static final String lexiconXID = "lexicon";
     public static final String wordXID = "word";
     public static final String localWordXID = "localWord";
     public static final String conWordXID = "conWord";
@@ -50,8 +52,10 @@ public class PGTUtil {
     public static final String wordClassAndValueXID = "wordClassification";
     public static final String wordClassTextValueCollectionXID = "wordClassTextValueCollection";
     public static final String wordClassTextValueXID = "wordClassTextValue";
+    public static final String wordEtymologyNotesXID = "wordEtymologyNotes";
 
     // properties for types/parts of speech
+    public static final String typeCollectionXID = "partsOfSpeech";
     public static final String typeXID = "class";
     public static final String typeNameXID = "className";
     public static final String typeIdXID = "classId";
@@ -70,6 +74,7 @@ public class PGTUtil {
     public static final String genderNotesXID = "genderNotes";
 
     // language properties
+    public static final String langPropertiesXID = "languageProperties";
     public static final String fontConXID = "fontCon";
     public static final String fontLocalXID = "fontLocal";
     public static final String langPropLangNameXID = "langName";
@@ -94,6 +99,7 @@ public class PGTUtil {
     public static final String langPropCharRepValueXID = "langPropCharRepValue";
 
     // declension properties
+    public static final String declensionCollectionXID = "declensionCollection";
     public static final String declensionXID = "declensionNode";
     public static final String declensionIdXID = "declensionId";
     public static final String declensionTextXID = "declensionText";
@@ -110,6 +116,7 @@ public class PGTUtil {
     public static final String dimensionNameXID = "dimensionName";
 
     // pronunciation properties
+    public static final String etymologyCollectionXID = "etymologyCollection";
     public static final String proGuideXID = "proGuide";
     public static final String proGuideBaseXID = "proGuideBase";
     public static final String proGuidePhonXID = "proGuidePhon";
@@ -183,6 +190,16 @@ public class PGTUtil {
     public static final String ClassValueNodeXID = "wordGrammarClassValueNode";
     public static final String ClassValueNameXID = "wordGrammarClassValueName";
     public static final String ClassValueIdXID = "wordGrammarClassValueId";
+    
+    // etymology constants
+    public static final String EtyCollectionXID = "EtymologyCollection";
+    public static final String EtyIntRelationNodeXID = "EtymologyInternalRelation";
+    public static final String EtyIntChildXID = "EtymologyInternalChild";
+    public static final String EtyChildExternalsXID = "EtymologyChildToExternalsNode";
+    public static final String EtyExternalWordNodeXID = "EtymologyExternalWordNode";
+    public static final String EtyExternalWordValueXID = "EtymologyExternalWordValue";
+    public static final String EtyExternalWordOriginXID = "EtymologyExternalWordOrigin";
+    public static final String EtyExternalWordDefinitionXID = "EtymologyExternalWordDefinition";
 
     // constants for PolyGlot options found in PolyGlot.ini
     public static final int optionsNumLastFiles = 5;
@@ -201,6 +218,7 @@ public class PGTUtil {
     public static final String UnicodeFontBoldLocation = "/PolyGlot/GeneralResources/CharisSIL-Bold.ttf";
     public static final String UnicodeFontItalicLocation = "/PolyGlot/GeneralResources/CharisSIL-Italic.ttf";
     public static final String UnicodeFontBoldItalicLocation = "/PolyGlot/GeneralResources/CharisSIL-BoldItalic.ttf";
+    public static final String UnicodeFontFamilyName = "Charis SIL";
     public static final String ButtonFontLocation = "/PolyGlot/GeneralResources/buttonFont.ttf";
     public static final String logoGraphSavePath = "logoGraphs/";
     public static final String imagesSavePath = "images/";

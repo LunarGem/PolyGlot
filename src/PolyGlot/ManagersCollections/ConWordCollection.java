@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015, Draque Thompson, draquemail@gmail.com
+ * Copyright (c) 2014-2017, Draque Thompson, draquemail@gmail.com
  * All rights reserved.
  *
  * Licensed under: Creative Commons Attribution-NonCommercial 4.0 International Public License
@@ -25,6 +25,7 @@ import PolyGlot.FormattedTextHelper;
 import PolyGlot.Nodes.DeclensionNode;
 import PolyGlot.Nodes.DeclensionPair;
 import PolyGlot.Nodes.DictNode;
+import PolyGlot.Nodes.EtyExternalParent;
 import PolyGlot.PGTUtil;
 import PolyGlot.Nodes.TypeNode;
 import PolyGlot.RankedObject;
@@ -447,7 +448,7 @@ public class ConWordCollection extends DictionaryCollection {
                 String proc;
 
                 // if set to ignore case, set up caseless matches, normal otherwise
-                if (core.getPropertiesManager().isIgnoreCase()) {                    
+                if (core.getPropertiesManager().isIgnoreCase()) {
                     local = curWord.getLocalWord().toLowerCase();
                     proc = curWord.getPronunciation().toLowerCase();
                 } else {
@@ -457,7 +458,6 @@ public class ConWordCollection extends DictionaryCollection {
 
                 // each filter test split up to minimize compares                
                 // definition
-
                 if (!_filter.getDefinition().trim().isEmpty()) {
                     boolean cont = true;
 
@@ -495,17 +495,16 @@ public class ConWordCollection extends DictionaryCollection {
                 }
 
                 // con word
-                if (!_filter.getValue().trim().isEmpty())
-                {
+                if (!_filter.getValue().trim().isEmpty()) {
                     boolean cont = true;
-                    
+
                     for (String val1 : _filter.getValue().split(splitChar)) {
                         if (matchHeadAndDeclensions(val1, curWord)) {
                             cont = false;
                             break;
                         }
                     }
-                    
+
                     if (cont) {
                         continue;
                     }
@@ -524,6 +523,24 @@ public class ConWordCollection extends DictionaryCollection {
                     if (cont) {
                         continue;
                     }
+                }
+                
+                // etymological root
+                Object parent = _filter.getFilterEtyParent();
+                if (parent != null) {
+                    if (parent instanceof ConWord) {
+                        ConWord parWord = (ConWord)parent;
+                        if (parWord.getId() != -1 && !core.getEtymologyManager()
+                                .childHasParent(curWord.getId(), parWord.getId())) {
+                            continue;
+                        }
+                    } if (parent instanceof EtyExternalParent) {
+                        EtyExternalParent parExt = (EtyExternalParent)parent;
+                        if (parExt.getId() != -1 && !core.getEtymologyManager()
+                                .childHasExtParent(curWord.getId(), parExt.getUniqueId())) {
+                            continue;
+                        }
+                    } 
                 }
 
                 retValues.setBufferWord(curWord);
@@ -562,14 +579,19 @@ public class ConWordCollection extends DictionaryCollection {
             Iterator<DeclensionPair> decIt = core.getDeclensionManager().getAllCombinedIds(typeId).iterator();
 
             while (!ret && decIt.hasNext()) {
-                DeclensionPair curPair = decIt.next();
-                String declension = core.getDeclensionManager()
-                        .declineWord(typeId, curPair.combinedId, word.getValue());
+                // silently skip erroring entries. Too cumbersone to deal with during a search
+                try {
+                    DeclensionPair curPair = decIt.next();
+                    String declension = core.getDeclensionManager()
+                            .declineWord(typeId, curPair.combinedId, word.getValue());
 
-                if (!declension.trim().isEmpty()
-                        && (declension.matches(matchText)
-                        || declension.startsWith(matchText))) {
-                    ret = true;
+                    if (!declension.trim().isEmpty()
+                            && (declension.matches(matchText)
+                            || declension.startsWith(matchText))) {
+                        ret = true;
+                    }
+                } catch (Exception e) {
+                    // do nothing (see above comment)
                 }
             }
         }
@@ -578,8 +600,12 @@ public class ConWordCollection extends DictionaryCollection {
     }
 
     @Override
-    public ConWord getNodeById(Integer _id) throws Exception {
-        return (ConWord) super.getNodeById(_id);
+    public ConWord getNodeById(Integer _id) throws WordNotExistsException {
+        try {
+            return (ConWord) super.getNodeById(_id);
+        } catch (NodeNotExistsException e) {
+            throw new WordNotExistsException(e.getLocalizedMessage());
+        }
     }
 
     /**
@@ -627,11 +653,11 @@ public class ConWordCollection extends DictionaryCollection {
         List<ConWord> retList = new ArrayList<>();
 
         // cycle through and create copies of words with multiple local values
-        for(ConWord curWord : cycleList) {
+        for (ConWord curWord : cycleList) {
             String localPre = curWord.getLocalWord();
             if (localPre.contains(",")) {
                 String[] allLocals = localPre.split(",");
-                
+
                 // create new temp word for purposes of dictionary creation
                 for (String curLocal : allLocals) {
                     ConWord ins = new ConWord();
@@ -639,14 +665,14 @@ public class ConWordCollection extends DictionaryCollection {
                     ins.setEqual(curWord);
                     ins.setLocalWord(curLocal);
                     ins.setParent(this);
-                    
+
                     retList.add(ins);
                 }
             } else {
                 retList.add(curWord);
             }
         }
-        
+
         orderByLocal = true;
         Collections.sort(retList);
         orderByLocal = false;
@@ -684,13 +710,14 @@ public class ConWordCollection extends DictionaryCollection {
      * Formats in HTML to a plain font to avoid conlang font
      *
      * @param toPlain text to make plain
+     * @param core
      * @return text in plain tag
      */
-    public static String formatPlain(String toPlain) {
-        String defaultFont = "face=\"" + Font.SANS_SERIF + "\"";
+    public static String formatPlain(String toPlain, DictCore core) {
+        String defaultFont = "face=\"" + core.getPropertiesManager().getCharisUnicodeFont().getFamily() + "\"";
         return "<font " + defaultFont + ">" + toPlain + "</font>";
     }
-    
+
     /**
      * Formats in HTML to a conlang font
      *
@@ -711,12 +738,15 @@ public class ConWordCollection extends DictionaryCollection {
      */
     public void writeXML(Document doc, Element rootElement) {
         List<ConWord> wordLoop = getWordNodes();
+        Element lexicon = doc.createElement(PGTUtil.lexiconXID);
         Element wordNode;
         Element wordValue;
 
+        rootElement.appendChild(lexicon);
+        
         for (ConWord curWord : wordLoop) {
             wordNode = doc.createElement(PGTUtil.wordXID);
-            rootElement.appendChild(wordNode);
+            lexicon.appendChild(wordNode);
 
             wordValue = doc.createElement(PGTUtil.wordIdXID);
             Integer wordId = curWord.getId();
@@ -775,6 +805,10 @@ public class ConWordCollection extends DictionaryCollection {
                 wordValue.appendChild(classVal);
             }
             wordNode.appendChild(wordValue);
+            
+            wordValue = doc.createElement(PGTUtil.wordEtymologyNotesXID);
+            wordValue.appendChild(doc.createTextNode(curWord.getEtymNotes()));
+            wordNode.appendChild(wordValue);
         }
     }
 
@@ -817,6 +851,12 @@ public class ConWordCollection extends DictionaryCollection {
 
             // wipe remaining values from word
             dm.removeDeclensionValues(curWord.getId(), decMap.values());
+        }
+    }
+
+    public class WordNotExistsException extends NodeNotExistsException {
+        public WordNotExistsException(String message) {
+            super(message);
         }
     }
 }

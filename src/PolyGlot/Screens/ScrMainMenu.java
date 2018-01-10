@@ -34,6 +34,7 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.Graphics;
+import java.awt.GraphicsEnvironment;
 import java.awt.Image;
 import java.awt.Insets;
 import java.io.File;
@@ -42,6 +43,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import javax.imageio.ImageIO;
 import javax.swing.GroupLayout;
@@ -69,6 +71,7 @@ import org.simplericity.macify.eawt.DefaultApplication;
 public class ScrMainMenu extends PFrame implements ApplicationListener {
 
     private PFrame curWindow = null;
+    private ScrLexicon cacheLexicon;
     private final List<String> lastFiles;
     private String curFileName = "";
     private Image backGround;
@@ -79,9 +82,11 @@ public class ScrMainMenu extends PFrame implements ApplicationListener {
      * @param overridePath Path PolyGlot should treat as home directory (blank
      * if default)
      */
+    @SuppressWarnings("LeakingThisInConstructor") // only passing as later reference
     public ScrMainMenu(String overridePath) {
         super();
         core = new DictCore(); // needed for initialization
+        cacheLexicon = ScrLexicon.run(core, this);
         
         UIManager.put("ScrollBarUI", "PolyGlot.CustomControls.PScrollBarUI");
         UIManager.put("SplitPaneUI", "PolyGlot.CustomControls.PSplitPaneUI");
@@ -96,7 +101,9 @@ public class ScrMainMenu extends PFrame implements ApplicationListener {
             backGround = ImageIO.read(getClass().getResource("/PolyGlot/ImageAssets/PolyGlotBG.png"));
             jLabel1.setFont(IOHandler.getButtonFont().deriveFont(45f));
         } catch (IOException e) {
-            InfoBox.error("Resource Error", "Unable to load internal resource: " + e.getLocalizedMessage(), core.getRootWindow());
+            InfoBox.error("Resource Error", 
+                    "Unable to load internal resource: " + e.getLocalizedMessage(), 
+                    core.getRootWindow());
         }
 
         newFile(false);
@@ -107,7 +114,13 @@ public class ScrMainMenu extends PFrame implements ApplicationListener {
 
         // activates macify for menu integration...
         if (System.getProperty("os.name").startsWith("Mac")) {
-            activateMacify();
+            try {
+                activateMacify();
+            } catch (Exception ex) {
+                //ex.printStackTrace();
+                // TODO: Consider removing macify entirely
+                // Inform user? Don't see a pressing need to...
+            }
         }
         
 ToolTipUI t;
@@ -118,8 +131,8 @@ ToolTipUI t;
      * For the purposes of startup with file
      */
     public void openLexicon() {
-        ScrLexicon lex = ScrLexicon.run(core, this);
-        changeScreen(lex, lex.getWindow(), null);
+        cacheLexicon.updateAllValues(core);
+        changeScreen(cacheLexicon, cacheLexicon.getWindow(), null);
     }
 
     @Override
@@ -148,6 +161,7 @@ ToolTipUI t;
         System.exit(0);
     }
 
+    // TODO: Consider removing Macify if it continues giving trouble/no benefit
     // MACIFY RELATED CODE ->    
     private void activateMacify() {
         Application application = new DefaultApplication();
@@ -281,8 +295,8 @@ ToolTipUI t;
             curFileName = fileName;
 
             if (curWindow == null) {
-                ScrLexicon lex = ScrLexicon.run(core, this);
-                changeScreen(lex, lex.getWindow(), null);
+                cacheLexicon.updateAllValues(core);
+                changeScreen(cacheLexicon, cacheLexicon.getWindow(), null);
             }
         } catch (IOException e) {
             core = new DictCore(); // don't allow partial loads
@@ -457,8 +471,8 @@ ToolTipUI t;
         updateAllValues(core);
 
         if (curWindow == null && performTest) {
-            ScrLexicon lex = ScrLexicon.run(core, this);
-            changeScreen(lex, lex.getWindow(), null);
+            cacheLexicon.updateAllValues(core);
+            changeScreen(cacheLexicon, cacheLexicon.getWindow(), null);
         }
     }
 
@@ -500,9 +514,13 @@ ToolTipUI t;
 
             Insets insets = getInsets();
             try {
-                this.setSizeSmooth(dim.width + jPanel1.getWidth() + insets.left + insets.right, dim.height + insets.bottom + insets.top, true);
+                this.setSizeSmooth(dim.width + jPanel1.getWidth() + insets.left + insets.right, 
+                        dim.height + insets.bottom + insets.top, 
+                        true);
             } catch (InterruptedException e) {
-                InfoBox.error("Resize Error", "Unable to run resize animation: " + e.getLocalizedMessage(), core.getRootWindow());
+                InfoBox.error("Resize Error", 
+                        "Unable to run resize animation: " + e.getLocalizedMessage(), 
+                        core.getRootWindow());
             }
         }
 
@@ -512,12 +530,16 @@ ToolTipUI t;
         layout.setHorizontalGroup(
                 layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                         .addComponent(display, javax.swing.GroupLayout.Alignment.TRAILING,
-                                javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                javax.swing.GroupLayout.DEFAULT_SIZE, 
+                                javax.swing.GroupLayout.DEFAULT_SIZE, 
+                                Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
                 layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                         .addComponent(display, javax.swing.GroupLayout.Alignment.TRAILING,
-                                javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                javax.swing.GroupLayout.DEFAULT_SIZE, 
+                                javax.swing.GroupLayout.DEFAULT_SIZE, 
+                                Short.MAX_VALUE)
         );
 
         curWindow = newScreen;
@@ -636,8 +658,9 @@ ToolTipUI t;
 
     /**
      * Prompts user for a location and exports font within PGD to given path
+     * @param exportCharis set to true to export charis, false to export con font
      */
-    public void exportFont() {
+    public void exportFont(boolean exportCharis) {
         JFileChooser chooser = new JFileChooser();
         String fileName;
         FileNameExtensionFilter filter = new FileNameExtensionFilter("Font Files", "ttf");
@@ -658,7 +681,11 @@ ToolTipUI t;
         }
 
         try {
-            IOHandler.exportFont(fileName, curFileName);
+            if (exportCharis) {
+                IOHandler.exportCharisFont(fileName);
+            } else {
+                IOHandler.exportFont(fileName, curFileName);
+            }
             InfoBox.info("Export Success", "Font exported to: " + fileName, core.getRootWindow());
         } catch (IOException e) {
             InfoBox.error("Export Error", "Unable to export font: " + e.getMessage(), core.getRootWindow());
@@ -723,7 +750,9 @@ ToolTipUI t;
             ScrLexicon scrLexicon = (ScrLexicon) curWindow;
             scrLexicon.selectWordById(id);
         } else {
-            InfoBox.warning("Open Lexicon", "Please open the Lexicon and select a word to use this feature.", core.getRootWindow());
+            InfoBox.warning("Open Lexicon", 
+                    "Please open the Lexicon and select a word to use this feature.", 
+                    core.getRootWindow());
         }
     }
 
@@ -740,7 +769,9 @@ ToolTipUI t;
             ScrLexicon scrLexicon = (ScrLexicon) curWindow;
             ret = scrLexicon.getCurrentWord();
         } else {
-            InfoBox.warning("Open Lexicon", "Please open the Lexicon and select a word to use this feature.", core.getRootWindow());
+            InfoBox.warning("Open Lexicon", 
+                    "Please open the Lexicon and select a word to use this feature.", 
+                    core.getRootWindow());
         }
 
         return ret;
@@ -833,7 +864,7 @@ ToolTipUI t;
         });
 
         btnPos.setText("Parts of Speech");
-        btnPos.setToolTipText("Create both parts of speech here, and define how their declension/conjugation rules work here.");
+        btnPos.setToolTipText("Create both parts of speech and define how their declension/conjugation rules work here.");
         btnPos.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnPosActionPerformed(evt);
@@ -1157,8 +1188,8 @@ ToolTipUI t;
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnLexiconActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLexiconActionPerformed
-        ScrLexicon lex = ScrLexicon.run(core, this);
-        changeScreen(lex, lex.getWindow(), (PButton) evt.getSource());
+        cacheLexicon.updateAllValues(core);
+        changeScreen(cacheLexicon, cacheLexicon.getWindow(), (PButton) evt.getSource());
     }//GEN-LAST:event_btnLexiconActionPerformed
 
     private void btnPosActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnPosActionPerformed
@@ -1210,7 +1241,7 @@ ToolTipUI t;
     }//GEN-LAST:event_mnuExportToExcelActionPerformed
 
     private void mnuExportFontActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_mnuExportFontActionPerformed
-        exportFont();
+        exportFont(false);
     }//GEN-LAST:event_mnuExportFontActionPerformed
 
     private void mnuLangStatsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_mnuLangStatsActionPerformed
@@ -1219,6 +1250,23 @@ ToolTipUI t;
                 + " take a long time to complete, depending on the complexity\n"
                 + "of your conlang. Continue?", core.getRootWindow()) == JOptionPane.YES_OPTION) {
             core.buildLanguageReport();
+            
+            // test whether con-font family is installed on computer
+            GraphicsEnvironment g = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            String conFontFamily = core.getPropertiesManager().getFontCon().getFamily();
+            if (!Arrays.asList(g.getAvailableFontFamilyNames()).contains(conFontFamily)) {
+                // prompt user to install font (either Charis or their chosen con-font) if not currently on system
+                InfoBox.warning("Font Not Installed", 
+                        "The font used for your language is not installe on this computer.\n"
+                        + "This may result in the statistics page appearing incorrectly.\n"
+                        + "Please select a path to save font to, install from this location, "
+                        + "and re-run the statistics option.", this);
+                if (conFontFamily.equals(PGTUtil.UnicodeFontFamilyName)) {
+                    exportFont(true);
+                } else {
+                    exportFont(false);
+                }
+            }
         }
         setCursor(Cursor.getDefaultCursor());
     }//GEN-LAST:event_mnuLangStatsActionPerformed
@@ -1331,34 +1379,46 @@ ToolTipUI t;
             @Override
             public void run() {
                 String overridePath = args.length > 1 ? args[1] : "";
-                ScrMainMenu s = new ScrMainMenu(overridePath);
+                String startProblems = "";
+                ScrMainMenu s = null;
 
-                s.checkForUpdates(false);
-                s.setupKeyStrokes();
-                s.setVisible(true);
+                try {
+                    s = new ScrMainMenu(overridePath);
 
-                // open file if one is provided via arguments
-                if (args.length > 0) {
-                    s.setFile(args[0]);
-                    s.openLexicon();
+                    s.checkForUpdates(false);
+                    s.setupKeyStrokes();
+                    s.setVisible(true);
+
+                    // open file if one is provided via arguments
+                    if (args.length > 0) {
+                        s.setFile(args[0]);
+                        s.openLexicon();
+                    }
+                } catch (Exception ex) {
+                    startProblems += "Unable to open PolyGlot main frame: \n" 
+                            + ex.getMessage() + "\n" 
+                            + "Please contact developer (draquemail@gmail.com) for assistance.";
                 }
-
-                String problems = "";
-                // Test for JavaFX and inform user that it is not present, they cannot run PolyGlot
+                
                 // Test for minimum version of Java (8)
                 String jVer = System.getProperty("java.version");
                 if (jVer.startsWith("1.5") || jVer.startsWith("1.6") || jVer.startsWith("1.7")) {
-                    problems += "Unable to start PolyGlot without Java 8.";
+                    startProblems += "Unable to start PolyGlot without Java 8 or higher.\n";
                 }
+                
                 try {
+                    // Test for JavaFX and inform user that it is not present, they cannot run PolyGlot
                     this.getClass().getClassLoader().loadClass("javafx.embed.swing.JFXPanel");
                 } catch (ClassNotFoundException e) {
-                    problems += "\nUnable to load Java FX. Download and install to use PolyGlot (JavaFX not included in some builds of Java 8 for Linux).";
+                    startProblems += "Unable to load Java FX. Download and install to use PolyGlot " 
+                            + "(JavaFX not included in some builds of Java 8 for Linux).\n";
                 }
 
-                if (!problems.equals("")) {
-                    InfoBox.error("Unable to start", problems + "\nPlease upgrade and restart to continue.", s);
-                    s.dispose();
+                if (!startProblems.equals("")) {
+                    InfoBox.error("Unable to start", startProblems, s);
+                    if (s != null) {
+                        s.dispose();
+                    }
                 }
             }
         });

@@ -47,6 +47,7 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -855,6 +856,22 @@ public class IOHandler {
             }
         }
     }
+    
+    /**
+     * Exports Charis unicode font to specified location
+     * @param exportPath full export path
+     * @throws IOException on failure
+     */
+    public static void exportCharisFont(String exportPath) throws IOException {
+        try (InputStream fontStream = IOHandler.class.getResourceAsStream(PGTUtil.UnicodeFontLocation)){
+            byte[] buffer = new byte[fontStream.available()];
+            fontStream.read(buffer);
+
+            try (OutputStream oStream = new FileOutputStream(new File(exportPath))) {
+                oStream.write(buffer);
+            }
+        }
+    }
 
     /**
      * Loads any related grammar recordings into the passed grammar manager via
@@ -1154,7 +1171,7 @@ public class IOHandler {
         try {
             File file = new File(path);
             Desktop.getDesktop().open(file);
-        } catch (Exception e) {
+        } catch (IOException e) {
             ret = false;
         }
 
