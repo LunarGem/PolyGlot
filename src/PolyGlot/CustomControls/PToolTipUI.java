@@ -53,14 +53,14 @@ public class PToolTipUI extends ToolTipUI
     private static PropertyChangeListener sharedPropertyChangedListener;
     private PropertyChangeListener propertyChangeListener;
     private Font font;
-
+    
     public PToolTipUI() {
         super();
-
+        
         try {
             font = IOHandler.getCharisUnicodeFontInitial().deriveFont((float)14.0);
         } catch (IOException e) {
-            InfoBox.error("Font error", "Unable to load tooltip font: "
+            InfoBox.error("Font error", "Unable to load tooltip font: " 
                     + e.getLocalizedMessage(), null);
         }
     }
@@ -132,20 +132,17 @@ public class PToolTipUI extends ToolTipUI
     @Override
     public void paint(Graphics g, JComponent c) {
         String tipText = ((JToolTip)c).getTipText();
-
+        
         tipText = tipText == null ? "" : tipText;
 
         c.setFont(font.deriveFont(font.getSize()));
         ((JToolTip)c).setTipText(tipText);
         g.setFont(font);
         FontMetrics metrics = g.getFontMetrics();
-        //NOTE: I think this is where the problem is
-        //TODO: This fix needs some investigation to figure out why it's not doing what it's supposed to do.
-        //I've put in a temp fix and commented out the original code.
-      //  Dimension size = new Dimension(metrics.stringWidth(tipText) + 2, metrics.getHeight() + 2);
-        Dimension size = new Dimension(metrics.stringWidth(tipText) + 6, metrics.getHeight() + 2);
-
+        Dimension size = new Dimension(metrics.stringWidth(tipText) + 2, metrics.getHeight() + 2);
+        
         c.setSize(size);
+<<<<<<< HEAD
         c.getParent().setSize(size);
 <<<<<<< HEAD
 =======
@@ -153,6 +150,9 @@ public class PToolTipUI extends ToolTipUI
             //c.getParent().getParent().setSize(size);
         }
 >>>>>>> refs/remotes/DraqueT/master
+=======
+        c.getParent().setSize(size);        
+>>>>>>> parent of 3675394... Temp fix
 
         Insets insets = c.getInsets();
         Rectangle paintTextR = new Rectangle(
@@ -160,15 +160,15 @@ public class PToolTipUI extends ToolTipUI
             insets.top,
             size.width - (insets.left + insets.right),
             size.height - (insets.top + insets.bottom));
-
+        
         ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
+        
         g.setColor(Color.black);
         g.fillRect(insets.left,
             insets.top,
             size.width - (insets.left + insets.right),
             size.height - (insets.top + insets.bottom));
-
+        
         g.setColor(Color.white);
         g.drawString(tipText, paintTextR.x + 1,
                 paintTextR.y + metrics.getAscent());
